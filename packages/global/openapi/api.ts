@@ -24,3 +24,6 @@ export type PaginationResponseType<T = any> = {
   total: number;
   list: T[];
 };
+
+// Backward-compatible alias for older callers that still import PaginationResponse.
+export type PaginationResponse<T = any> = PaginationResponseType<T>;

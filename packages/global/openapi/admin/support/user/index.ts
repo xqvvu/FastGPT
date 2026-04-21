@@ -1,6 +1,8 @@
+import { AdminLoginPath } from './login';
 import { AdminInformPath } from './inform';
 import type { OpenAPIPath } from '../../../type';
 
 export const AdminUserPath: OpenAPIPath = {
+  ...AdminLoginPath,
   ...AdminInformPath
 };
