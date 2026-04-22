@@ -64,7 +64,15 @@ export const LogCategories = {
       FILE: ['dataset', 'file'],
       FOLDER: ['dataset', 'folder'],
       QUEUES: ['dataset', 'queues'],
-      TRAINING: ['dataset', 'training']
+      TRAINING: ['dataset', 'training'],
+
+      FILE_PARSE: ['dataset', 'training', 'file-parse'],
+      EMBEDDING: ['dataset', 'training', 'embedding'],
+      QA: ['dataset', 'training', 'qa'],
+      IMAGE_PARSE: ['dataset', 'training', 'image-parse'],
+      IMAGE_INDEX: ['dataset', 'training', 'image-index'],
+      INDEX_EXTEND: ['dataset', 'training', 'index-extend'],
+      LLM_PARGRAPH: ['dataset', 'training', 'llm-pargraph']
     }),
     AI: Object.assign(['ai'], {
       AGENT: ['ai', 'agent'],
@@ -77,6 +85,12 @@ export const LogCategories = {
       OPTIMIZE_PROMPT: ['ai', 'optimize-prompt'],
       RERANK: ['ai', 'rerank'],
       SANDBOX: ['ai', 'sandbox']
+    }),
+    AGENT_SKILLS: Object.assign(['agent-skills'], {
+      CREATION: ['agent-skills', 'create-skill'],
+      EXPORT: ['agent-skills', 'export-skill'],
+      DEPLOY: ['agent-skills', 'deploy-skill'],
+      IMPORT: ['agent-skills', 'import-skill']
     }),
     USER: Object.assign(['user'], {
       ACCOUNT: ['user', 'account'],
@@ -93,7 +107,8 @@ export const LogCategories = {
       OFFIACCOUNT: ['outlink', 'offiaccount'],
       PLAYGROUND: ['outlink', 'playground'],
       TOOLS: ['outlink', 'tools'],
-      WECOM: ['outlink', 'wecom']
+      WECOM: ['outlink', 'wecom'],
+      WECHAT: ['outlink', 'wechat']
     }),
     CHAT: Object.assign(['chat'], {
       FEEDBACK: ['chat', 'feedback'],
@@ -101,6 +116,7 @@ export const LogCategories = {
       HISTORY: ['chat', 'history'],
       INPUT_GUIDE: ['chat', 'input-guide'],
       ITEM: ['chat', 'item'],
+      RESUME: ['chat', 'resume'],
       OUTLINK: ['chat', 'outlink'],
       QUOTE: ['chat', 'quote'],
       RECORD: ['chat', 'record'],
@@ -133,9 +149,6 @@ export const LogCategories = {
 
   // 事件层
   EVENT: {
-    OUTLINK: ['event', 'outlink'],
-    FEISHU: ['event', 'feishu'],
-    WECHAT: ['event', 'wechat'],
     TRACK: ['event', 'track']
   }
 };

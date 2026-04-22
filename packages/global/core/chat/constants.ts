@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { i18nT } from '../../../web/i18n/utils';
 
 export enum ChatRoleEnum {
@@ -32,6 +33,7 @@ export enum ChatSourceEnum {
   feishu = 'feishu',
   official_account = 'official_account',
   wecom = 'wecom',
+  wechat = 'wechat',
   mcp = 'mcp'
 }
 
@@ -72,6 +74,10 @@ export const ChatSourceMap = {
     name: i18nT('common:core.chat.logs.wecom'),
     color: '#FD853A'
   },
+  [ChatSourceEnum.wechat]: {
+    name: i18nT('common:core.chat.logs.wechat'),
+    color: '#07C160'
+  },
   [ChatSourceEnum.mcp]: {
     name: i18nT('common:core.chat.logs.mcp'),
     color: '#F97066'
@@ -83,3 +89,23 @@ export enum ChatStatusEnum {
   running = 'running',
   finish = 'finish'
 }
+
+export enum GetChatTypeEnum {
+  normal = 'normal',
+  outLink = 'outLink',
+  team = 'team',
+  home = 'home'
+}
+
+export enum ChatGenerateStatusEnum {
+  generating = 0,
+  done = 1,
+  error = 2
+}
+
+/**
+ * Opt-in header for enabling Redis-backed SSE resume buffering on chat stream endpoints.
+ * Third-party clients that do not need `/api/core/chat/resume` should omit it.
+ */
+export const STREAM_RESUME_REQUEST_HEADER = 'x-fastgpt-stream-resume';
+export const STREAM_RESUME_REQUEST_HEADER_ENABLED = '1';

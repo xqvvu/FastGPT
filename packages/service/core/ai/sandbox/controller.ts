@@ -137,6 +137,21 @@ export class SandboxClient {
   }
 }
 
+export const getSandboxClient = async (
+  props:
+    | {
+        sandboxId: string;
+      }
+    | UnionIdType,
+  opts: {
+    resourceLimits?: ResourceLimits;
+  } = {}
+) => {
+  const client = new SandboxClient(props, opts);
+  await client.ensureAvailable();
+  return client;
+};
+
 // ==== Delete Sandboxes ====
 export const deleteSandboxesByChatIds = async ({
   appId,
