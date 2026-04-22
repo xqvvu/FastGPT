@@ -5,7 +5,7 @@ import type { ChatItemType } from '@fastgpt/global/core/chat/type';
 import {
   transformPreviewHistories,
   addStatisticalDataToHistoryItem
-} from '@/global/core/chat/utils';
+} from '@fastgpt/global/core/chat/utils';
 
 const mockResponseData = {
   id: '1',

@@ -11,7 +11,7 @@ import { pushTrack } from '@fastgpt/service/common/middle/tracks/utils';
 import { addAuditLog } from '@fastgpt/service/support/user/audit/util';
 import { CommonErrEnum } from '@fastgpt/global/common/error/code/common';
 import { UserErrEnum } from '@fastgpt/global/common/error/code/user';
-import { Call } from '@test/utils/request';
+import { Call } from '@repo-test/utils/request';
 import type { PostLoginProps } from '@fastgpt/global/support/user/api';
 import { initTeamFreePlan } from '@fastgpt/service/support/wallet/sub/utils';
 

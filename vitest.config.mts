@@ -6,17 +6,21 @@ export default defineConfig({
     alias: {
       '@': resolve('projects/app/src'),
       '@fastgpt': resolve('packages'),
-      '@pro-admin': resolve('pro/admin/src'),
       '@test': resolve('test')
     }
   },
   test: {
+    env: {
+      FILE_TOKEN_KEY:
+        process.env.FILE_TOKEN_KEY ??
+        'bfd697e7e798f75deaf2d31210bc93a2e41ad4eed9e7831071d77821b7b97cff'
+    },
     coverage: {
       enabled: true,
       reporter: ['text', 'text-summary', 'html', 'json-summary', 'json'],
       reportOnFailure: true,
       all: false, // 只包含被测试实际覆盖的文件，不包含空目录
-      include: ['projects/app/**/*.ts', 'packages/**/*.ts', 'pro/admin/**/*.ts', 'pro/sso/**/*.ts'],
+      include: ['projects/app/**/*.ts', 'packages/**/*.ts'],
       exclude: [
         '**/node_modules/**',
         '**/*.spec.ts',
@@ -45,11 +49,8 @@ export default defineConfig({
     pool: 'threads',
     testTimeout: 20000,
     hookTimeout: 30000,
+    passWithNoTests: true,
     reporters: ['github-actions', 'default'],
-    include: [
-      'test/**/*.test.ts',
-      'projects/app/test/**/*.test.ts',
-      'projects/marketplace/test/**/*.test.ts'
-    ]
+    include: ['test/**/*.test.ts']
   }
 });
