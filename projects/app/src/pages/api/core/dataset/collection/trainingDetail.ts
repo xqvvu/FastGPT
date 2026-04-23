@@ -1,7 +1,7 @@
 import { MongoDatasetTraining } from '@fastgpt/service/core/dataset/training/schema';
-import type {
+import {
   DatasetCollectionDataProcessModeEnum,
-  TrainingModeEnum
+  type TrainingModeEnum
 } from '@fastgpt/global/core/dataset/constants';
 import { readFromSecondary } from '@fastgpt/service/common/mongo/utils';
 import { NextAPI } from '@/service/middleware/entry';
@@ -140,7 +140,7 @@ async function handler(
   );
 
   return {
-    trainingType: collection.trainingType,
+    trainingType: collection.trainingType ?? DatasetCollectionDataProcessModeEnum.chunk,
     advancedTraining: {
       customPdfParse: !!collection.customPdfParse,
       imageIndex: !!collection.imageIndex,

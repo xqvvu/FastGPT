@@ -15,6 +15,7 @@ import { useCopyData } from '@fastgpt/web/hooks/useCopyData';
 import { ChatSidebarPaneEnum } from '@/pageComponents/chat/constants';
 
 const defaultPlaygroundVisibilityForm: PlaygroundVisibilityConfigType = {
+  showSkillReferences: true,
   showRunningStatus: true,
   showCite: true,
   showFullText: true,

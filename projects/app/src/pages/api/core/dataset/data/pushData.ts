@@ -9,6 +9,7 @@ import { NextAPI } from '@/service/middleware/entry';
 import { WritePermissionVal } from '@fastgpt/global/support/permission/constant';
 import { getTrainingModeByCollection } from '@fastgpt/service/core/dataset/collection/utils';
 import type { ApiRequestProps } from '@fastgpt/service/type/next';
+import { DatasetCollectionDataProcessModeEnum } from '@fastgpt/global/core/dataset/constants';
 
 async function handler(req: ApiRequestProps<PushDatasetDataProps>, res: NextApiResponse<any>) {
   const body = req.body;
@@ -34,7 +35,10 @@ async function handler(req: ApiRequestProps<PushDatasetDataProps>, res: NextApiR
     per: WritePermissionVal
   });
 
-  const mode = getTrainingModeByCollection(collection);
+  const mode = getTrainingModeByCollection({
+    ...collection,
+    trainingType: collection.trainingType ?? DatasetCollectionDataProcessModeEnum.chunk
+  });
 
   // auth dataset limit
   await checkDatasetIndexLimit({

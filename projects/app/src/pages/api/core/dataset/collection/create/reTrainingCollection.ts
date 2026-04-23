@@ -48,6 +48,7 @@ async function handler(
       createCollectionParams: {
         ...collection,
         ...data,
+        parentId: collection.parentId ?? undefined,
         updateTime: new Date(),
         tags: await collectionTagsToTagLabel({
           datasetId: collection.datasetId,
