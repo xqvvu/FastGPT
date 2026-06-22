@@ -163,7 +163,6 @@ const RenderAgentPlanAskInteractive = React.memo(function RenderAgentPlanAskInte
             answer={effectiveAnswer}
             isOptionsExpanded={isOptionsExpanded}
             onToggle={toggleOptionsExpanded}
-            mt={selectedAnswerPlacement === 'above' && !shouldShowOptions ? 0 : 3}
           />
         </Box>
       )}
