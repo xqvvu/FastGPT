@@ -17,6 +17,7 @@ const originalEnv = {
   AGENT_SANDBOX_SUSPEND_MINUTES: process.env.AGENT_SANDBOX_SUSPEND_MINUTES,
   AGENT_SANDBOX_ARCHIVE_INACTIVE_DAYS: process.env.AGENT_SANDBOX_ARCHIVE_INACTIVE_DAYS,
   FILE_TOKEN_KEY: process.env.FILE_TOKEN_KEY,
+  FILE_URL_EXPIRED_HOURS: process.env.FILE_URL_EXPIRED_HOURS,
   FILE_DOWNLOAD_PUBLIC_URL_PREFIX: process.env.FILE_DOWNLOAD_PUBLIC_URL_PREFIX,
   STORAGE_DOWNLOAD_URL_MODE: process.env.STORAGE_DOWNLOAD_URL_MODE,
   SYNC_INDEX: process.env.SYNC_INDEX,
@@ -67,6 +68,7 @@ describe('serviceEnv', () => {
       originalEnv.AGENT_SANDBOX_ARCHIVE_INACTIVE_DAYS
     );
     vi.stubEnv('FILE_TOKEN_KEY', originalEnv.FILE_TOKEN_KEY);
+    vi.stubEnv('FILE_URL_EXPIRED_HOURS', originalEnv.FILE_URL_EXPIRED_HOURS);
     vi.stubEnv('FILE_DOWNLOAD_PUBLIC_URL_PREFIX', originalEnv.FILE_DOWNLOAD_PUBLIC_URL_PREFIX);
     vi.stubEnv('STORAGE_DOWNLOAD_URL_MODE', originalEnv.STORAGE_DOWNLOAD_URL_MODE);
     vi.stubEnv('SYNC_INDEX', originalEnv.SYNC_INDEX);
@@ -126,6 +128,28 @@ describe('serviceEnv', () => {
     await expect(importServiceEnv()).resolves.toMatchObject({
       serviceEnv: { DB_MAX_LINK: 1000 }
     });
+  });
+
+  it('validates the file access URL expiration in hours', async () => {
+    vi.stubEnv('FILE_TOKEN_KEY', 'filetokenkey');
+    vi.stubEnv('AES256_SECRET_KEY', 'fastgptsecret');
+    vi.stubEnv('INVOKE_TOKEN_SECRET', validInvokeTokenSecret);
+
+    vi.stubEnv('FILE_URL_EXPIRED_HOURS', undefined);
+    await expect(importServiceEnv()).resolves.toMatchObject({
+      serviceEnv: { FILE_URL_EXPIRED_HOURS: 1 }
+    });
+
+    vi.stubEnv('FILE_URL_EXPIRED_HOURS', '0.5');
+    await expect(importServiceEnv()).resolves.toMatchObject({
+      serviceEnv: { FILE_URL_EXPIRED_HOURS: 0.5 }
+    });
+
+    vi.stubEnv('FILE_URL_EXPIRED_HOURS', '0');
+    await expect(importServiceEnv()).rejects.toThrow('Invalid environment variables');
+
+    vi.stubEnv('FILE_URL_EXPIRED_HOURS', 'not-a-number');
+    await expect(importServiceEnv()).rejects.toThrow('Invalid environment variables');
   });
 
   it('enables MongoDB index synchronization by default and supports disabling it', async () => {

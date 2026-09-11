@@ -240,6 +240,10 @@ export const serviceEnv = createEnv({
     STORAGE_DOWNLOAD_REDIRECT_TTL_SECONDS: IntSchema.min(1).default(300).meta({
       description: 'short-redirect 模式下临时 S3 预签名下载链接 TTL（秒）'
     }),
+    // FastGPT 签发并写入聊天记录的文件访问短链有效期。
+    FILE_URL_EXPIRED_HOURS: NumSchema.positive().default(1).meta({
+      description: '文件访问短链有效期（小时），支持小数'
+    }),
     STORAGE_S3_ENDPOINT: UrlSchema.default('http://localhost:9000'),
     STORAGE_PUBLIC_ACCESS_EXTRA_SUB_PATH: z.string().optional(),
     STORAGE_ACCESS_KEY_ID: z.string().default('minioadmin'),
