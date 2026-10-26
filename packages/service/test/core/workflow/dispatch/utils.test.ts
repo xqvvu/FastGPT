@@ -1833,6 +1833,10 @@ describe('getNodeErrResponse', () => {
       [NodeOutputKeyEnum.errorText]: 'Invalid MCP URL',
       name: 'UserConfigError'
     });
+    expect(result[DispatchNodeResponseKeyEnum.nodeResponse]).toMatchObject({
+      errorText: 'Invalid MCP URL',
+      errorType: 'UserConfigError'
+    });
     expect(isUserConfigError(result.error)).toBe(true);
   });
 
@@ -1908,6 +1912,40 @@ describe('summarizeRuntimeNodeResponses', () => {
       hasError: true,
       errorCount: 1,
       errorText: 'child workflow failed'
+    });
+  });
+
+  it('keeps only an all-user-config error set as user_error', () => {
+    const userConfigOnly = summarizeRuntimeNodeResponses(undefined, [
+      {
+        id: 'config-error',
+        nodeId: 'tool-node',
+        moduleType: FlowNodeTypeEnum.toolCall,
+        errorText: 'Invalid MCP URL',
+        errorType: 'UserConfigError'
+      }
+    ] as ChatHistoryItemResType[]);
+
+    expect(userConfigOnly).toMatchObject({
+      hasError: true,
+      hasUserConfigError: true,
+      errorText: 'Invalid MCP URL'
+    });
+
+    const withSystemError = summarizeRuntimeNodeResponses(userConfigOnly, [
+      {
+        id: 'system-error',
+        nodeId: 'chat-node',
+        moduleType: FlowNodeTypeEnum.chatNode,
+        errorText: 'database unavailable'
+      }
+    ] as ChatHistoryItemResType[]);
+
+    expect(withSystemError).toMatchObject({
+      hasError: true,
+      hasUserConfigError: false,
+      errorText: 'database unavailable',
+      errorCount: 2
     });
   });
 
@@ -2287,6 +2325,56 @@ describe('mergeWorkflowRuntimeSummary', () => {
     expect(display.llmInputTokens).toBe(900);
     expect(display.llmOutputTokens).toBe(100);
   });
+
+  it('lets a system error override an earlier user config error', () => {
+    const merged = mergeWorkflowRuntimeSummary({
+      currentSummary: {
+        ...createWorkflowRuntimeSummary(),
+        hasError: true,
+        hasUserConfigError: true,
+        errorText: 'Invalid MCP URL',
+        errorCount: 1
+      },
+      nodeSummary: {
+        hasError: true,
+        hasUserConfigError: false,
+        errorText: 'database unavailable',
+        errorCount: 1
+      }
+    });
+
+    expect(merged).toMatchObject({
+      hasError: true,
+      hasUserConfigError: false,
+      errorText: 'database unavailable',
+      errorCount: 2
+    });
+  });
+
+  it('keeps user config classification when all uncaptured errors are user errors', () => {
+    const merged = mergeWorkflowRuntimeSummary({
+      currentSummary: {
+        ...createWorkflowRuntimeSummary(),
+        hasError: true,
+        hasUserConfigError: true,
+        errorText: 'Invalid MCP URL',
+        errorCount: 1
+      },
+      nodeSummary: {
+        hasError: true,
+        hasUserConfigError: true,
+        errorText: 'Invalid API key',
+        errorCount: 1
+      }
+    });
+
+    expect(merged).toMatchObject({
+      hasError: true,
+      hasUserConfigError: true,
+      errorText: 'Invalid API key',
+      errorCount: 2
+    });
+  });
 });
 
 describe('createNodeSummary', () => {
@@ -2295,6 +2383,7 @@ describe('createNodeSummary', () => {
     summary.mergeNodeSummary({
       llmInputTokens: 5,
       llmOutputTokens: 2,
+      hasError: true,
       hasUserConfigError: true
     });
     summary.mergeNodeSummary({ llmInputTokens: 3 });
@@ -2302,6 +2391,7 @@ describe('createNodeSummary', () => {
     expect(summary).toMatchObject({
       llmInputTokens: 8,
       llmOutputTokens: 2,
+      hasError: true,
       hasUserConfigError: true
     });
     expect(createNodeSummary()).toMatchObject({ llmInputTokens: 0, llmOutputTokens: 0 });

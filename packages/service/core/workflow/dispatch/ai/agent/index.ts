@@ -314,7 +314,7 @@ export const dispatchRunAgent = async (props: DispatchAgentModuleProps): Promise
       });
     // 3. 运行单主 loop。
     // 如果上一轮因 ask_user 暂停，这里会把用户回答作为 ask tool response 接回原 messages。
-    const { summary: outputSummary } = await runAgentLoopCoreWithSummary({
+    const { result: coreResult, summary: outputSummary } = await runAgentLoopCoreWithSummary({
       provider,
       runtime,
       input: buildAgentLoopCoreInput({
@@ -366,6 +366,8 @@ export const dispatchRunAgent = async (props: DispatchAgentModuleProps): Promise
       reasoningText: outputSummary.reasoningText,
       hideReason: aiChatReasoning === false
     });
+    const isUserConfigFailure =
+      coreResult.status === 'error' && isUserConfigError(coreResult.error);
 
     return {
       data: {
@@ -373,7 +375,8 @@ export const dispatchRunAgent = async (props: DispatchAgentModuleProps): Promise
       },
       ...(outputSummary.errorText && {
         error: {
-          [NodeOutputKeyEnum.errorText]: outputSummary.errorText
+          [NodeOutputKeyEnum.errorText]: outputSummary.errorText,
+          ...(isUserConfigFailure && { name: 'UserConfigError' as const })
         }
       }),
       [DispatchNodeResponseKeyEnum.memories]: buildAgentLoopCoreDoneMemories({
