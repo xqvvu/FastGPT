@@ -530,11 +530,10 @@ export class MCPClient {
         )}; SSE: ${getErrorMessage(sseError)}`;
         // Streamable 404 可能只是提示客户端回退 SSE，最终是否属于用户配置错误
         // 必须以 SSE 的最终失败为准，避免掩盖 5xx、网络或协议错误。
-        const sseErrorCode = getMcpErrorCode(sseError);
-        const isUserConfigFailure =
-          isMcpUserConfigCode(sseError, MCP_CONNECT_USER_CONFIG_ERROR_CODES) ||
-          (sseErrorCode === undefined &&
-            isMcpUserConfigCode(streamableError, MCP_ACTIVE_SESSION_USER_CONFIG_ERROR_CODES));
+        const isUserConfigFailure = isMcpUserConfigCode(
+          sseError,
+          MCP_CONNECT_USER_CONFIG_ERROR_CODES
+        );
 
         if (isUserConfigFailure) {
           throw new UserConfigError(message, undefined, { cause: sseError });
