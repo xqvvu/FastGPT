@@ -1,4 +1,4 @@
-import { getErrText } from '@fastgpt/global/common/error/utils';
+import { getErrText, isUserConfigError } from '@fastgpt/global/common/error/utils';
 import { NodeOutputKeyEnum, NodeInputKeyEnum } from '@fastgpt/global/core/workflow/constants';
 import { DispatchNodeResponseKeyEnum } from '@fastgpt/global/core/workflow/runtime/constants';
 import { workflowSseEvent } from '@fastgpt/global/core/workflow/runtime/sse';
@@ -419,7 +419,9 @@ export const dispatchRunTool = async (props: RunToolProps): Promise<RunToolRespo
       });
     }
 
-    logger.error('Tool Run Error', { error });
+    if (!isUserConfigError(error)) {
+      logger.error('Tool Run Error', { error });
+    }
 
     return getNodeErrResponse({
       error,
