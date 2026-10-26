@@ -394,18 +394,17 @@ export const createMcpSseFetch = (fetchImpl: McpFetch): McpFetch => {
  *
  * UserConfigError 只保存 cause，需要沿 cause 继续读取状态码用于本地诊断。
  */
-const getMcpErrorCode = (error: unknown): number | undefined => {
-  if (error instanceof StreamableHTTPError) {
-    return error.code;
-  }
-  if (typeof error !== 'object' || error === null) {
+const getMcpErrorCode = (error: unknown, visited = new Set<unknown>()): number | undefined => {
+  if (typeof error !== 'object' || error === null || visited.has(error)) {
     return;
   }
-  if ('code' in error && typeof error.code === 'number') {
+  visited.add(error);
+
+  if (error instanceof StreamableHTTPError || error instanceof McpHttpStatusError) {
     return error.code;
   }
   if ('cause' in error) {
-    return getMcpErrorCode(error.cause);
+    return getMcpErrorCode(error.cause, visited);
   }
 };
 
@@ -493,7 +492,7 @@ export class MCPClient {
     const safeFetch = createMcpSafeFetch();
     this.safeFetch = safeFetch;
 
-    logger.debug('Start connect mcp client', { url: this.url });
+    logger.debug('Start connect mcp client', { urlHost: getMcpLogHost(this.url) });
     try {
       const transport = new StreamableHTTPClientTransport(new URL(this.url), {
         fetch: safeFetch,
@@ -526,10 +525,11 @@ export class MCPClient {
         )}; SSE: ${getErrorMessage(sseError)}`;
         // Streamable 404 可能只是提示客户端回退 SSE，最终是否属于用户配置错误
         // 必须以 SSE 的最终失败为准，避免掩盖 5xx、网络或协议错误。
-        const isUserConfigFailure = isMcpUserConfigCode(
-          sseError,
-          MCP_CONNECT_USER_CONFIG_ERROR_CODES
-        );
+        const sseErrorCode = getMcpErrorCode(sseError);
+        const isUserConfigFailure =
+          isMcpUserConfigCode(sseError, MCP_CONNECT_USER_CONFIG_ERROR_CODES) ||
+          (sseErrorCode === undefined &&
+            isMcpUserConfigCode(streamableError, MCP_ACTIVE_SESSION_USER_CONFIG_ERROR_CODES));
 
         if (isUserConfigFailure) {
           throw new UserConfigError(message, undefined, { cause: sseError });
@@ -551,7 +551,10 @@ export class MCPClient {
           error
         });
       } else {
-        logger.warn('MCP client connection error', { url: this.url, error });
+        logger.warn('MCP client connection error', {
+          urlHost: getMcpLogHost(this.url),
+          error
+        });
       }
       this.connectionPromise = null;
       void this.closeSafeFetch();
@@ -580,10 +583,13 @@ export class MCPClient {
     try {
       await retryFn(() => this.client.close(), 3);
       await this.closeSafeFetch();
-      logger.debug('MCP client connection closed', { url: this.url });
+      logger.debug('MCP client connection closed', { urlHost: getMcpLogHost(this.url) });
     } catch (error) {
       await this.closeSafeFetch();
-      logger.error('MCP client failed to close connection', { url: this.url, error });
+      logger.error('MCP client failed to close connection', {
+        urlHost: getMcpLogHost(this.url),
+        error
+      });
     }
   }
 
@@ -648,7 +654,10 @@ export class MCPClient {
     } catch (error) {
       const normalizedError = normalizeMcpActiveSessionError(error);
       if (!isUserConfigError(normalizedError)) {
-        logger.error('MCP client failed to get tools', { url: this.url, error: normalizedError });
+        logger.error('MCP client failed to get tools', {
+          urlHost: getMcpLogHost(this.url),
+          error: normalizedError
+        });
       } else {
         logMcpUserConfigError({
           operation: 'getTools',
@@ -679,7 +688,11 @@ export class MCPClient {
   }): Promise<any> {
     try {
       const client = await this.getConnection();
-      logger.debug('MCP client calling tool', { url: this.url, toolName, params });
+      logger.debug('MCP client calling tool', {
+        urlHost: getMcpLogHost(this.url),
+        toolName,
+        params
+      });
 
       return await client.callTool(
         {
@@ -695,7 +708,7 @@ export class MCPClient {
       const normalizedError = normalizeMcpActiveSessionError(error);
       if (!isUserConfigError(normalizedError)) {
         logger.error('MCP client tool call failed', {
-          url: this.url,
+          urlHost: getMcpLogHost(this.url),
           toolName,
           error: normalizedError
         });

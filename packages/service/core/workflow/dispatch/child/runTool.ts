@@ -1,4 +1,4 @@
-import { getErrText, isUserConfigError } from '@fastgpt/global/common/error/utils';
+import { getErrText, isUserConfigError, UserConfigError } from '@fastgpt/global/common/error/utils';
 import { NodeOutputKeyEnum, NodeInputKeyEnum } from '@fastgpt/global/core/workflow/constants';
 import { DispatchNodeResponseKeyEnum } from '@fastgpt/global/core/workflow/runtime/constants';
 import { workflowSseEvent } from '@fastgpt/global/core/workflow/runtime/sse';
@@ -270,7 +270,7 @@ export const dispatchRunTool = async (props: RunToolProps): Promise<RunToolRespo
       // pluginId: toolSetAppId/toolsetName/toolName
       const { parentId, toolName } = parseToolId(toolConfig.mcpTool.toolId);
       if (!parentId || !toolName) {
-        throw new Error(`Invalid MCP tool id: ${toolConfig.mcpTool.toolId}`);
+        throw new UserConfigError(`Invalid MCP tool id: ${toolConfig.mcpTool.toolId}`);
       }
       const app = await authRuntimeToolset(parentId, toolName);
       const workflow = await getAppVersionById({ appId: parentId, app });
@@ -278,14 +278,16 @@ export const dispatchRunTool = async (props: RunToolProps): Promise<RunToolRespo
         workflow.nodes[0]?.toolConfig?.mcpToolSet
       ).data;
       const mcpToolList = await getMCPChildren(app, workflow);
-      if (!mcpToolSet || !mcpToolList.length) throw new Error('MCP tool set is missing');
+      if (!mcpToolSet || !mcpToolList.length) {
+        throw new UserConfigError('MCP tool set is missing');
+      }
       const mcpTool = getToolNameCandidates(toolName)
         .map((name) => mcpToolList.find((tool) => tool.name === name))
         .find(Boolean);
-      if (!mcpTool) throw new Error(`MCP tool ${toolName} not found`);
+      if (!mcpTool) throw new UserConfigError(`MCP tool ${toolName} not found`);
       const url = mcpToolSet?.url ?? mcpTool.url;
       const headerSecret = mcpToolSet?.headerSecret ?? mcpTool.headerSecret;
-      if (!url) throw new Error('MCP tool set URL is missing');
+      if (!url) throw new UserConfigError('MCP tool set URL is missing');
 
       await assertMCPUrlNotInternal(url);
 
@@ -315,7 +317,7 @@ export const dispatchRunTool = async (props: RunToolProps): Promise<RunToolRespo
     } else if (toolConfig?.httpTool?.toolId) {
       const { parentId, toolName } = parseToolId(toolConfig.httpTool.toolId);
       if (!parentId || !toolName) {
-        throw new Error(`Invalid HTTP tool id: ${toolConfig.httpTool.toolId}`);
+        throw new UserConfigError(`Invalid HTTP tool id: ${toolConfig.httpTool.toolId}`);
       }
       const app = await authRuntimeToolset(parentId, toolName);
       const workflow = await getAppVersionById({
@@ -328,7 +330,7 @@ export const dispatchRunTool = async (props: RunToolProps): Promise<RunToolRespo
       ).data;
       const toolList = await getHTTPToolList(app, workflow);
       if (!toolSetData || !toolList.length) {
-        throw new Error('HTTP tool set not found');
+        throw new UserConfigError('HTTP tool set not found');
       }
 
       const { headerSecret, baseUrl, customHeaders } = toolSetData ?? {};
@@ -337,7 +339,7 @@ export const dispatchRunTool = async (props: RunToolProps): Promise<RunToolRespo
         .map((name) => toolList?.find((tool: HttpToolConfigType) => tool.name === name))
         .find(Boolean);
       if (!httpTool) {
-        throw new Error(`HTTP tool ${toolName} not found`);
+        throw new UserConfigError(`HTTP tool ${toolName} not found`);
       }
 
       toolInput = params;
