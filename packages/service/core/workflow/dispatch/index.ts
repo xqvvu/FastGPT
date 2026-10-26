@@ -946,6 +946,7 @@ export class WorkflowQueue {
             };
           } catch (error) {
             const errorText = getErrText(error);
+            const isUserConfigFailure = isUserConfigError(error);
             // Skip all edges and return error
             let skipHandleId = targetEdges.map((item) => item.sourceHandle);
             if (node.catchError) {
@@ -953,10 +954,11 @@ export class WorkflowQueue {
             }
 
             return {
-              ...(node.catchError
+              ...(node.catchError || isUserConfigFailure
                 ? {
                     error: {
-                      [NodeOutputKeyEnum.errorText]: errorText
+                      [NodeOutputKeyEnum.errorText]: errorText,
+                      ...(isUserConfigFailure ? { name: 'UserConfigError' as const } : {})
                     }
                   }
                 : {}),
@@ -999,6 +1001,9 @@ export class WorkflowQueue {
       const currentNodeError =
         formatCurrentNodeResponse?.errorText ?? formatCurrentNodeResponse?.error;
       const isUserConfigFailure = isUserConfigError(dispatchRes.error);
+      if (isUserConfigFailure) {
+        nodeSummary.mergeNodeSummary({ hasUserConfigError: true });
+      }
 
       // Queue 只合并 callback 主动贡献的增量；所有 nodeResponse
       // 均交给当前 workflow 的 sink scope 统一提取 summary。

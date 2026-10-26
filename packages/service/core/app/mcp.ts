@@ -44,7 +44,9 @@ type McpChildToolType = McpToolConfigType & {
 const MCP_SAFE_FETCH_MAX_REDIRECTS = 5;
 const MCP_REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const MCP_SENSITIVE_REDIRECT_HEADERS = new Set(['authorization', 'cookie', 'proxy-authorization']);
-const MCP_USER_CONFIG_ERROR_CODES = new Set([401, 403, 404, 410]);
+const MCP_CONNECT_USER_CONFIG_ERROR_CODES = new Set([401, 403, 404, 410]);
+// 404 在已建立连接后通常表示 Session 过期，应按连接故障处理而不是用户配置错误。
+const MCP_ACTIVE_SESSION_USER_CONFIG_ERROR_CODES = new Set([401, 403, 410]);
 
 type McpRequestInit = RequestInit & {
   dispatcher?: Dispatcher;
@@ -360,35 +362,69 @@ const getErrorMessage = (error: unknown) => {
 };
 
 /**
- * 判断 MCP 4xx 是否明确来自用户可修正的地址或鉴权配置。
+ * 提取 MCP SDK 或 fetch 错误中的 HTTP 状态码。
  *
- * 400、429 等状态可能由协议实现或临时限流引起，仍保留系统诊断日志；
- * 401/403/404/410 则直接作为用户配置错误返回，避免进入 OTel error 指标。
+ * UserConfigError 只保存 cause，需要沿 cause 继续读取状态码用于本地诊断。
  */
-const isMcpUserConfigResponse = (error: unknown): boolean => {
-  const code = (() => {
-    if (error instanceof StreamableHTTPError) {
-      return error.code;
-    }
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      typeof error.code === 'number'
-    ) {
-      return error.code;
-    }
-  })();
-
-  return typeof code === 'number' && MCP_USER_CONFIG_ERROR_CODES.has(code);
+const getMcpErrorCode = (error: unknown): number | undefined => {
+  if (error instanceof StreamableHTTPError) {
+    return error.code;
+  }
+  if (typeof error !== 'object' || error === null) {
+    return;
+  }
+  if ('code' in error && typeof error.code === 'number') {
+    return error.code;
+  }
+  if ('cause' in error) {
+    return getMcpErrorCode(error.cause);
+  }
 };
 
-const normalizeMcpClientError = (error: unknown) => {
-  if (isUserConfigError(error) || !isMcpUserConfigResponse(error)) {
+const isMcpUserConfigCode = (error: unknown, codes: Set<number>) => {
+  const code = getMcpErrorCode(error);
+  return typeof code === 'number' && codes.has(code);
+};
+
+/** 仅提取 host，避免把可能包含临时 token 的完整 MCP 地址写入日志。 */
+const getMcpLogHost = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return 'invalid-url';
+  }
+};
+
+/**
+ * 用户配置类 MCP 错误保留本地诊断信息，但不导出到 OTel。
+ */
+const logMcpUserConfigError = ({
+  operation,
+  url,
+  error
+}: {
+  operation: string;
+  url: string;
+  error: unknown;
+}) => {
+  logger.warn('MCP client user config error', {
+    operation,
+    urlHost: getMcpLogHost(url),
+    errorCode: getMcpErrorCode(error),
+    error: getErrorMessage(error),
+    fastgpt: true
+  });
+};
+
+const normalizeMcpActiveSessionError = (error: unknown) => {
+  if (
+    isUserConfigError(error) ||
+    !isMcpUserConfigCode(error, MCP_ACTIVE_SESSION_USER_CONFIG_ERROR_CODES)
+  ) {
     return error;
   }
 
-  return new UserConfigError(getErrorMessage(error));
+  return new UserConfigError(getErrorMessage(error), undefined, { cause: error });
 };
 
 export class MCPClient {
@@ -459,23 +495,33 @@ export class MCPClient {
         const message = `MCP connection failed. Streamable HTTP: ${getErrorMessage(
           streamableError
         )}; SSE: ${getErrorMessage(sseError)}`;
-        const isUserConfigFailure =
-          isMcpUserConfigResponse(streamableError) || isMcpUserConfigResponse(sseError);
+        // Streamable 404 可能只是提示客户端回退 SSE，最终是否属于用户配置错误
+        // 必须以 SSE 的最终失败为准，避免掩盖 5xx、网络或协议错误。
+        const isUserConfigFailure = isMcpUserConfigCode(
+          sseError,
+          MCP_CONNECT_USER_CONFIG_ERROR_CODES
+        );
 
         if (isUserConfigFailure) {
-          throw new UserConfigError(message);
+          throw new UserConfigError(message, undefined, { cause: sseError });
         }
 
         logger.info('SSE error', sseError);
-        throw new Error(message);
+        throw new Error(message, { cause: sseError });
       }
     }
 
     this.client.onerror = (error) => {
       // 忽略掉不支持 streamable 的错误
       if (error?.message?.includes('SSE stream: Not Found')) return;
-      // 地址失效或鉴权失败属于用户配置问题，不写入系统错误日志。
-      if (!isMcpUserConfigResponse(error)) {
+      // 地址失效或鉴权失败属于用户配置问题，仅保留本地诊断日志。
+      if (isMcpUserConfigCode(error, MCP_ACTIVE_SESSION_USER_CONFIG_ERROR_CODES)) {
+        logMcpUserConfigError({
+          operation: 'connection',
+          url: this.url,
+          error
+        });
+      } else {
         logger.warn('MCP client connection error', { url: this.url, error });
       }
       this.connectionPromise = null;
@@ -571,9 +617,15 @@ export class MCPClient {
       // @ts-ignore
       return tools;
     } catch (error) {
-      const normalizedError = normalizeMcpClientError(error);
+      const normalizedError = normalizeMcpActiveSessionError(error);
       if (!isUserConfigError(normalizedError)) {
         logger.error('MCP client failed to get tools', { url: this.url, error: normalizedError });
+      } else {
+        logMcpUserConfigError({
+          operation: 'getTools',
+          url: this.url,
+          error: normalizedError
+        });
       }
       return Promise.reject(normalizedError);
     } finally {
@@ -611,11 +663,17 @@ export class MCPClient {
         }
       );
     } catch (error) {
-      const normalizedError = normalizeMcpClientError(error);
+      const normalizedError = normalizeMcpActiveSessionError(error);
       if (!isUserConfigError(normalizedError)) {
         logger.error('MCP client tool call failed', {
           url: this.url,
           toolName,
+          error: normalizedError
+        });
+      } else {
+        logMcpUserConfigError({
+          operation: 'toolCall',
+          url: this.url,
           error: normalizedError
         });
       }

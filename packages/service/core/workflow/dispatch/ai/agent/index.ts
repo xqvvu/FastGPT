@@ -17,7 +17,7 @@ import type { DispatchNodeResultType, ModuleDispatchProps } from '../../../types
 import { useUserContext } from './adapter/userContext';
 import { getAgentDatasetParams, getSubapps } from './sub/utils';
 
-import { getErrText } from '@fastgpt/global/common/error/utils';
+import { getErrText, isUserConfigError } from '@fastgpt/global/common/error/utils';
 import { buildDefaultAgentSystemPrompt } from '../../../../ai/llm/agentLoop/interface';
 import {
   assertSandboxAvailable,
@@ -383,13 +383,17 @@ export const dispatchRunAgent = async (props: DispatchAgentModuleProps): Promise
     };
   } catch (error) {
     // dispatch 层兜底：异常仍要清理 pending memory；内部详情已经由 sink 发布。
-    getLogger(LogCategories.MODULE.AI.AGENT).error(`[Agent] dispatchRunAgent caught error`, {
-      error
-    });
+    const isUserConfigFailure = isUserConfigError(error);
+    if (!isUserConfigFailure) {
+      getLogger(LogCategories.MODULE.AI.AGENT).error(`[Agent] dispatchRunAgent caught error`, {
+        error
+      });
+    }
     const errorText = getErrText(error);
     return {
       error: {
-        [NodeOutputKeyEnum.errorText]: errorText
+        [NodeOutputKeyEnum.errorText]: errorText,
+        ...(isUserConfigFailure ? { name: 'UserConfigError' as const } : {})
       },
       [DispatchNodeResponseKeyEnum.toolResponse]: {
         error: errorText
