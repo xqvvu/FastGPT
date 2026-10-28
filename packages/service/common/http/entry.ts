@@ -6,6 +6,7 @@ import { ZodError } from 'zod';
 import { randomUUID } from 'crypto';
 import { getClientIpFromRequest } from '../security/clientIp';
 import { ApiRequestInputParseError, getZodParseErrorInputSource } from '../zod/requestParseError';
+import { isUserConfigError } from '@fastgpt/global/common/error/utils';
 
 export type ApiHandler<
   T = any,
@@ -208,6 +209,15 @@ export const createApiEntry = <
                 return jsonRes(res, {
                   code: 400,
                   message: 'Data validation error',
+                  error,
+                  url: logUrl
+                });
+              }
+
+              if (isUserConfigError(error)) {
+                span.setAttribute('http.response.status_code', 400);
+                return jsonRes(res, {
+                  code: 400,
                   error,
                   url: logUrl
                 });
